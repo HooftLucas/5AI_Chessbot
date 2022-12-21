@@ -86,7 +86,7 @@ class Utilities_Chess(Utility):
                 return 999999
 
         if board.is_stalemate(): #there is no legal moves  -> it's a draw
-            return 0 # we can make it negative or positive if its good to use it
+            return -9999 # we can make it negative or positive if its good to use it
         if board.is_insufficient_material(): # only 2 kings are active
             return 0
 
@@ -109,3 +109,32 @@ class Utilities_Chess(Utility):
         material_value_enemy += len(board.pieces(chess.QUEEN, not board.turn)) * queen_value
         material_value_enemy += len(board.pieces(chess.KING, not board.turn)) * king_value
         return material_value - material_value_enemy
+
+    def piecesquare_value(self, board: chess.Board): #gevonden online -> kunnen het nog verbeteren
+        if self.endgame:
+            kings_table = kings_table_endgame
+        else:
+            kings_table = kings_table_middlegame
+        pawnsq = sum([pawn_table[i] for i in board.pieces(chess.PAWN, board.turn)])
+        pawnsq += sum([-pawn_table[chess.square_mirror(i)] for i in board.pieces(chess.PAWN, not board.turn)])
+        knightsq = sum([knights_table[i] for i in board.pieces(chess.KNIGHT, board.turn)])
+        knightsq += sum([-knights_table[chess.square_mirror(i)] for i in board.pieces(chess.KNIGHT, not board.turn)])
+        bishopsq = sum([bishops_table[i] for i in board.pieces(chess.BISHOP, board.turn)])
+        bishopsq += sum([-bishops_table[chess.square_mirror(i)] for i in board.pieces(chess.BISHOP, not board.turn)])
+        rooksq = sum([rooks_table[i] for i in board.pieces(chess.ROOK, board.turn)])
+        rooksq += sum([-rooks_table[chess.square_mirror(i)] for i in board.pieces(chess.ROOK, not board.turn)])
+        queensq = sum([queens_table[i] for i in board.pieces(chess.QUEEN, board.turn)])
+        queensq += sum([-queens_table[chess.square_mirror(i)] for i in board.pieces(chess.QUEEN, not board.turn)])
+        kingsq = sum([kings_table[i] for i in board.pieces(chess.KING, board.turn)])
+        kingsq += sum([-kings_table[chess.square_mirror(i)] for i in board.pieces(chess.KING, not board.turn)])
+        return pawnsq + knightsq + bishopsq + rooksq + queensq + kingsq
+
+
+    def mobility_value(self, board: chess.Board):
+        mobility = 0
+        for move in board.legal_moves:
+            if board.piece_at(move.from_square).color == board.turn:
+                mobility += 1
+            else:
+                mobility -= 1
+        return mobility

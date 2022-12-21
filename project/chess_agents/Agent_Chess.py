@@ -2,12 +2,13 @@ import os
 
 from project.chess_agents.agent import Agent
 import chess
+
 from project.chess_utilities.utility import Utility
+
 import time
 import random
 import chess.syzygy #this is our book for endgames
 import chess.polyglot
-
 
 def openingSequence(board, book, isWhite) -> list[chess.Move]:
     moves = []
@@ -67,7 +68,7 @@ class Agent_Chess(Agent):
         self.whiteBook = whiteBook
         self.blackBook = blackBook
         self.endGameBook = endGameBook
-
+        self.score: float = 0
         self.weightVector: dict = {}
         self.gameOpened: bool = False
         self.endGame: bool = False
@@ -82,8 +83,6 @@ class Agent_Chess(Agent):
         if self.moveQueue:
             return self.moveQueue.pop()  # Pop the next action
 
-        # White? Black?
-        isWhite: bool = board.turn == chess.WHITE
 
         # Check begin game
         if not self.gameOpened:  # If game has not opened
@@ -107,9 +106,33 @@ class Agent_Chess(Agent):
         print("Move found in: " + str(start_time - time.time()))
         return optimal_move  # ?
 
-    def negamax_heuristic_alpha_beta_prune(self, alpha: float, beta: float, depthLeft: int, board: chess.Board) -> chess.Move:
+    def negamax_heuristic_alpha_beta_prune(self, alpha: float, beta: float, depthleft: int, board: chess.Board, time_limit_move: float) -> float:
         """
+        :param alpha:
+        :param beta:
+        :param depthLeft:
+        :param board:
+        :param time_limit_move:
+        :return:
+        """
+        if depthleft == 0:  # TODO Or timelimiet
+            return self.quiescence(alpha, beta, board)
+        for move in board.legal_moves:
+          score = -self.negamax_heuristic_alpha_beta_prune(-beta, -alpha, depthleft - 1, board)
+          if score >= beta:
+             return beta
+          if score > alpha:
+             alpha = score
+        return alpha
 
+
+    def quiescence(self, alpha, beta, board: chess.Board) -> float:
+        """
+        Quiescence uses a non-Linear Heuristic to approximate board value
+
+
+        :param alpha:
+        :param beta:
         :param board:
         """
         # TODO

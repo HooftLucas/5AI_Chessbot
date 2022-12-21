@@ -1,6 +1,6 @@
 from abc import ABC
 import chess
-from project.chess_utilities.utility import Utility
+from project.chess_utilities.Utilities_Chess import Utility
 
 """A generic agent class"""
 
@@ -8,7 +8,7 @@ from project.chess_utilities.utility import Utility
 class Agent(ABC):
 
     def __init__(self, utility: Utility, time_limit_move: float) -> None:
-        """Setup the Search Agent"""
+        """Set up the Search Agent"""
         self.utility = utility
         self.time_limit_move = time_limit_move
 
