@@ -1,5 +1,8 @@
+import random
+
 import chess
 from project.chess_utilities.utility import Utility
+from random import randint
 
 pawn_table = [
     0, 0, 0, 0, 0, 0, 0, 0,
@@ -73,10 +76,19 @@ king_value = 200000
 
 
 class Utilities_Chess(Utility):
-    def __init__(self, weightVector) -> None:
-        self.weightVector: dict = weightVector
+    def __init__(self, weightVector: dict) -> None:
+        self.weightVector: dict[str, float] = weightVector
         self.score = 0
         self.endGame = False
+
+    def board_heuristic(self, board: chess.Board, Weightmaterial: float, Weightpiecesuare: float, Weight_mobility: float) -> float:
+        """
+        Main function which returns the value of a board state
+        :param board:
+        :return:
+        """
+        return self.material_value(board) * Weightmaterial + self.piecesquare_value(board) * 1 + self.mobility_value(board) * Weight_mobility
+
 
     def board_value(self, board: chess.Board):
         if board.is_checkmate(): #control on checkmate

@@ -79,6 +79,20 @@ class Agent_Chess(Agent):
         # Start timer
         start_time = time.time()  # Max 15 seconds
 
+        # White? Black?
+        isWhite: bool = board.turn == chess.WHITE
+        #control who we are and set a random score to know who has the most pions on the board
+        if isWhite:
+            if chess.WHITE.isCapture():
+                self.score -= 10
+            else:
+                self.score += 10
+        else:
+            if chess.BLACK.isCapture():
+                self.score -= 10
+            else:
+                self.score += 10
+
         # Check if there are moves queued
         if self.moveQueue:
             return self.moveQueue.pop()  # Pop the next action
@@ -98,13 +112,44 @@ class Agent_Chess(Agent):
             if sum(board.piece_map()) <= 8:  # Check for endgame
                 self.moveQueue = endGameSequence(board=chess.Board, endGameBook=self.endGameBook)
                 self.endGame = True
-
                 return self.moveQueue.pop()
 
         # Else, start search
-        optimal_move = self.negamax_heuristic_alpha_beta_prune()
-        print("Move found in: " + str(start_time - time.time()))
-        return optimal_move  # ?
+
+        # Iterative deepening (returnt dictionary, best mogelijke tak)
+            # Tot n lagen of Tmax, exploreert de graph met negamax_heuristic_alpha_beta_prune()
+            # Met als parameters n = 3, TO DO n is f(T)
+            # tMax = 1/5 T, TO DO -> optimaliseren met testen
+
+        # Ideal explore
+            # met negamax_heuristic_alpha_beta_prune() <- topscore eerst
+            # Tot n lagen of t = 90%T
+            # Met als parameters n = 3, en tMax = 0.9T TODO n is f(T)
+
+        #for move in sortedMoves
+            #if moveScore > bestScore <- Bestscore default is topscore in sortedMoves
+            # then bestScore (and bestMove) = current
+
+
+    def iterative_deepening(self, time_limit: float, board: chess.Board, depth: int) -> dict[float, tuple[chess.Move, chess.Board]]:
+        """
+        Iterates the first n layers and stores moves
+        """
+        #while t < tMax or n < nMax:
+            # Explore tak (with negamax_heuristic_alpha_beta_prune()
+            # Store moves to max (via hash)
+        #return dict: {float, (board.Move, board.state)}
+
+        depthLeft: int = depth
+        searchResultDict: dict[float, tuple[chess.Move, chess.Board]] = {}
+
+        validMoves = [move for move in board.legal_moves]
+
+        while time.time() < time_limit and depthLeft > 0 and validMoves:
+            move: chess.Move = validMoves.pop()
+            
+        return searchResultDict
+
 
     def negamax_heuristic_alpha_beta_prune(self, alpha: float, beta: float, depthleft: int, board: chess.Board, time_limit_move: float) -> float:
         """
@@ -134,14 +179,7 @@ class Agent_Chess(Agent):
         :param alpha:
         :param beta:
         :param board:
+        :return:
         """
-        # TODO
-        #if depthleft == 0:
-        #    return self.quiescence(alpha, beta)
-        for move in board.legal_moves:
-            score = -self.negamax_heuristic_alpha_beta_prune(-beta, -alpha, depthLeft - 1, board)
-            if score >= beta:
-                return beta
-            if score > alpha:
-                alpha = score
-        return alpha
+
+

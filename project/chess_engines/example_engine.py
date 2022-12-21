@@ -9,13 +9,13 @@ from project.chess_utilities.Utilities_Chess import Utilities_Chess
 from project.chess_utilities.example_utility import ExampleUtility
 
 if __name__ == "__main__":
-    StartWhite = os.path.join('../books/baron30.bin');
-    endGameBook = os.path.join('../books/syzygy');
+    StartWhite = os.path.join('../books/baron30.bin')
+    endGameBook = os.path.join('../books/syzygy')
     StartBlack = os.path.join('../books/Human.bin')
     # Create your utility
-    utility = Utilities_Chess()
+    utility = Utilities_Chess({})
     # Create your agent
-    agent = ExampleAgent(utility, 5.0)
+    agent = Agent_Chess(utility, 15.0, StartWhite, StartBlack, endGameBook)
     # Create the engine
     engine = UciEngine("engine", "Lucas, Robbe en Warre", agent)
     # Run the engine (will loop until the game is done or exited)
