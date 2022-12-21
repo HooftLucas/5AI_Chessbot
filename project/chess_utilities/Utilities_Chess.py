@@ -81,13 +81,13 @@ class Utilities_Chess(Utility):
         self.score = 0
         self.endGame = False
 
-    def board_heuristic(self, board: chess.Board, Weightmaterial: float, Weightpiecesuare: float, Weight_mobility: float) -> float:
+    def board_heuristic(self, board: chess.Board) -> float:
         """
         Main function which returns the value of a board state
         :param board:
         :return:
         """
-        return self.material_value(board) * Weightmaterial + self.piecesquare_value(board) * 1 + self.mobility_value(board) * Weight_mobility
+        return self.board_value(board)
 
 
     def board_value(self, board: chess.Board):
@@ -99,11 +99,10 @@ class Utilities_Chess(Utility):
 
         if board.is_stalemate(): #there is no legal moves  -> it's a draw
             return -9999 # we can make it negative or positive if its good to use it
-        if board.is_insufficient_material(): # only 2 kings are active
+        if board.is_insufficient_material():  # only 2 kings are active
             return 0
+        return self.material_value(board) * 1 + self.piecesquare_value(board) * 1 + self.mobility_value(board) * 1  # 1 = weights
 
-
-        return self.material_value(board) * 1 + self.piecesquare_value(board) * 1 + self.mobility_value(board) * 1 # 1= weights
     def material_value(self, board: chess.Board):
         material_value = 0
         material_value += len(board.pieces(chess.PAWN, board.turn)) * pawn_value
