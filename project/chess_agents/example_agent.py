@@ -24,7 +24,7 @@ class ExampleAgent(Agent):
         
         best_move = random.sample(list(board.legal_moves), 1)[0]
         best_utility = 0
-        # Loop trough all legal moves
+        # Loop through all legal moves
         for move in list(board.legal_moves):
             # Check if the maximum calculation time for this move has been reached
             if time.time() - start_time > self.time_limit_move:
