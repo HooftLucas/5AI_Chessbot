@@ -73,11 +73,15 @@ class Agent_Chess(Agent):
         isWhite: bool = board.turn == chess.WHITE
 
         if not self.gameOpened:  # If game has not opened
+
             if isWhite:  # White opening
-               self.moveQueue = openingSequence(board=board, book=self.whiteBook)
+               Move = openingSequence(board=board, book=self.whiteBook)
             else:  # Black opening
-                self.moveQueue = openingSequence(board=board, book=self.blackBook)
+                Move = openingSequence(board=board, book=self.blackBook)
             self.gameOpened = True
+
+            self.moveQueue.append(Move)
+            board.push(self.moveQueue[0])
             return self.moveQueue.pop()
         # If endgame
         else:
@@ -104,23 +108,23 @@ class Agent_Chess(Agent):
 
     def iterative_deepening(self, iterative_time_limit: float, board: chess.Board, maxDepth: int) -> list[float]:
         searchResult: list[float] = []
-        depth = 2
+        Depth = 2
         alpha = -100000
         beta = 100000
         validMoves = [move for move in board.legal_moves]
 
-        while time.time() < (iterative_time_limit + self.time_start) and maxDepth != 0:
+        while time.time() < (iterative_time_limit + self.time_start) and Depth < 8:
             if time.time() - self.time_start > self.time_limit_move:
                 break
             move: chess.Move = validMoves.pop()  # Take a valid move off the list
 
             board.push(move)
-            moveScore = -self.negamax_heuristic_alpha_beta_prune(alpha=-alpha, beta=-beta, depthleft=depth,
+            moveScore = -self.negamax_heuristic_alpha_beta_prune(alpha=-alpha, beta=-beta, depthleft=Depth,
                                                                  board=board)  # Calculate the score in this branch
 
             board.pop()
             searchResult.append(moveScore)
-            maxDepth -= 1
+            Depth += 1
 
 
         return searchResult
