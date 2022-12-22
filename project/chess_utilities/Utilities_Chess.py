@@ -1,8 +1,5 @@
-import random
-
 import chess
 from project.chess_utilities.utility import Utility
-from random import randint
 
 pawn_table = [
     0, 0, 0, 0, 0, 0, 0, 0,
@@ -75,7 +72,7 @@ queen_value = 900
 king_value = 200000
 
 
-class Utilities_Chess(Utility):
+class UtilitiesChess(Utility):
     def __init__(self, weightVector: dict) -> None:
         self.weightVector: dict[str, float] = weightVector
         self.score = 0
@@ -101,6 +98,8 @@ class Utilities_Chess(Utility):
             return -9999 # we can make it negative or positive if its good to use it
         if board.is_insufficient_material():  # only 2 kings are active
             return 0
+        if sum(board.piece_map()) <= 8:
+            self.endGame = True
         return self.material_value(board) * 1 + self.piecesquare_value(board) * 1 + self.mobility_value(board) * 1  # 1 = weights
 
     def material_value(self, board: chess.Board):
@@ -122,7 +121,7 @@ class Utilities_Chess(Utility):
         return material_value - material_value_enemy
 
     def piecesquare_value(self, board: chess.Board): #gevonden online -> kunnen het nog verbeteren
-        if self.endgame:
+        if self.endGame:
             kings_table = kings_table_endgame
         else:
             kings_table = kings_table_middlegame
