@@ -1,189 +1,155 @@
-import random
-
 from project.chess_agents.agent import Agent
 import chess
-
 from project.chess_utilities.utility import Utility
-
 import time
-import chess.syzygy  # this is our book for endgames
-import chess.polyglot
-def openingSequence(board, book) -> list[chess.Move]:
-    moves = []
-    move = None
-    print("open with openingMove")
-    with chess.polyglot.open_reader(book) as openingMove:
-        for entry in openingMove.find_all(board):
-            moves.append(entry.move)
-    if moves: # later kunnen we dit nog specificieren als er met zwart of wit wordt gespeeld
-        move = random.choice(moves)
-    return move
-def endGameSequence(board, endGameBook) -> chess.Move:
-    bestMove = []
-    # https://www.chessprogramming.org/Syzygy_Bases
-    with chess.syzygy.open_tablebase(endGameBook) as end:
-        distanceZero = end.get_dtz(board)  # to root the 50 move rule
-        wdl = end.get_wdl(board)  # win/ draw/ loss rate
-    for moves in board.legal_moves:
-        Capteruing = board.piece_at(moves.to_square)
-        board.push(moves)
-        with chess.syzygy.open_tablebase(endGameBook) as end:  # open the endbook
-            New_wdl = end.get_wdl(board)
-            NewDistanceZero = end.get_dtz(board)
+from project.books.book_manager import BookManager
 
-        board.pop()
-        if wdl == 0:
-            if New_wdl == -2:
-                return moves
-            elif New_wdl == -1 or New_wdl == 0:
-                bestMove = moves
-        if wdl == 1 or wdl == 2:
-            if New_wdl == -2 or New_wdl == -1:
-                if Capteruing:
-                    return moves
-                else:
-                    if abs(NewDistanceZero) <= abs(distanceZero):
-                        distanceZero = NewDistanceZero
-                        bestMove = moves
-            if New_wdl == -1 or New_wdl == -2:
-                if New_wdl == -2 or New_wdl == -1 or New_wdl == 0:
-                    return moves
-                else:
-                    if abs(NewDistanceZero) >= abs(distanceZero):
-                        distanceZero = NewDistanceZero
-                        bestMove = moves
-    return bestMove
-
-class Agent_Chess(Agent):
-    # Initialize your agent with whatever parameters you want
-    def __init__(self, utility: Utility, time_limit_move: float, whiteBook, blackBook, endGameBook) -> None:
+class ChessAgent(Agent):
+    # We initialize the agent
+    def __init__(self, utility: Utility, time_limit_move: float) -> None:
         super().__init__(utility, time_limit_move)
-        self.name = "Search Agent"
-        self.author = "Lucas, Robbe en Warre"
-        self.moveQueue: list[chess.Move] = []
-        self.time_start = 0
-        self.whiteBook = whiteBook
-        self.blackBook = blackBook
-        self.endGameBook = endGameBook
-        self.gameOpened: bool = False
-        self.endGame: bool = True
+        self.name = "Intelligent chess agent"
+        self.author = "Authors"
 
-    def calculate_move(self, board: chess.Board) -> chess.Move:
+        # Books
+        self.bookManager = BookManager()
+
+        # Movement Queue
+        self.moveQueue: list = []
+
+        # States
+        self.gameOpened: bool = True
+
+        # Time related
+        self.timeStart = 0
+        self.maxTimePerMove = 15.0
+
+        # Search Parameters
+        self.iterative_deepening_depth: int = 3
+
+        # Transposition table
+        self.transpositionTable: dict[int, tuple[float, chess.Move]] = {}
+
+    def calculate_move(self, board: chess.Board):
         self.time_start = time.time()
-        isWhite: bool = board.turn == chess.WHITE
+        print("Starting ...")
 
+        # Check if we have any moves in Queue
+        if self.moveQueue:
+            board.push(move=self.moveQueue[0])
+            return self.moveQueue.pop()
+
+        # Check begin game
         if not self.gameOpened:  # If game has not opened
-
-            if isWhite:  # White opening
-               Move = openingSequence(board=board, book=self.whiteBook)
+            if board.turn == chess.WHITE:  # White opening
+                self.moveQueue = self.bookManager.openingSequence(board=board, isWhite=True)
             else:  # Black opening
-                Move = openingSequence(board=board, book=self.blackBook)
+                self.moveQueue = self.bookManager.openingSequence(board=board, isWhite=True)
             self.gameOpened = True
-
-            self.moveQueue.append(Move)
-            board.push(self.moveQueue[0])
             return self.moveQueue.pop()
+
         # If endgame
-        else:
-            scoreTopBranches = self.iterative_deepening(3.0, board, 3)
-            print(scoreTopBranches)
-            moveTopBranches = [move for move in board.legal_moves]
-            bestScore = -99999
-            bestMove = chess.Move.null()
-            alpha = -100000
-            beta = 100000
-            for move in moveTopBranches:
-                board.push(move)
-                score = -self.negamax_heuristic_alpha_beta_prune(beta=-beta, alpha=-alpha, depthleft=50, board=board)
-                if score > bestScore:
-                    bestScore = score
-                    bestMove = move
-                if score > alpha:
-                    alpha = score
-                board.pop()
-
-            self.moveQueue.append(bestMove)
+        if sum(board.piece_map()) <= 7:  # Check for endgame
+            self.moveQueue = self.bookManager.endGameSequence(board=board)
+            self.utility.set_end_game()
             board.push(self.moveQueue[0])
             return self.moveQueue.pop()
 
-    def iterative_deepening(self, iterative_time_limit: float, board: chess.Board, maxDepth: int) -> list[float]:
-        searchResult: list[float] = []
-        Depth = 2
-        alpha = -100000
-        beta = 100000
-        validMoves = [move for move in board.legal_moves]
 
-        while time.time() < (iterative_time_limit + self.time_start) and Depth < 8:
-            if time.time() - self.time_start > self.time_limit_move:
-                break
-            move: chess.Move = validMoves.pop()  # Take a valid move off the list
+        sortedMoves = self.iterative_deepening(board)
 
+        # We now set up our starting values for the end result
+        bestMove: chess.Move = sortedMoves[0]
+        board.push(move=sortedMoves[0])
+        alpha: float = self.utility.calculate_heuristic(board)
+        beta = -alpha
+        board.pop()
+        """Once we have sorted our possible moves with iterative search, we explore further with alpha beta pruning"""
+        for move in sortedMoves[1:]:
             board.push(move)
-            moveScore = -self.negamax_heuristic_alpha_beta_prune(alpha=-alpha, beta=-beta, depthleft=Depth,
-                                                                 board=board)  # Calculate the score in this branch
-
+            boardScore = self.alphaBetaMax(board, alpha, beta, 50)
             board.pop()
-            searchResult.append(moveScore)
-            Depth += 1
 
+            if boardScore > alpha:
+                alpha = boardScore
+                bestMove = move
 
-        return searchResult
+        if board.is_irreversible(bestMove):  # If the move is reversible, we clear out the transposition table because earlier entries are not valid anymore
+            self.transpositionTable.clear()
+        return bestMove
 
-    def negamax_heuristic_alpha_beta_prune(self, alpha: float, beta: float,
-                                           depthleft: int, board: chess.Board
-                                           ) -> float:
-        best_score = -99999
-        if depthleft == 0 and time.time() - self.time_start < self.time_limit_move:
-            return self.quiescence(alpha, beta, board)
+    def iterative_deepening(self, board: chess.Board) -> list[chess.Move]:
+        legalMoves: list[chess.Move] = list(board.legal_moves)
+        moveScores: list[float] = [-100000] * len(legalMoves)
+
+        for depth in range(self.iterative_deepening_depth):
+            if depth == self.iterative_deepening_depth or time.time() - self.time_start > self.time_limit_move/5:
+                break
+            for moveIndex, move in enumerate(legalMoves):
+                alpha = -100000
+                beta = 100000
+                board.push(move)
+                moveScore = self.alphaBetaMax(board, alpha, beta, depth)
+                board.pop()
+                if moveScore > moveScores[moveIndex]:
+                    moveScores[moveIndex] = moveScore
+
+        sortedMoves = [move for _, move in sorted(zip(moveScores, legalMoves), key=lambda pair: pair[0])]
+        return sortedMoves
+
+    def alphaBetaMax(self, board: chess.Board, alpha: float, beta: float, depthLeft: int) -> float:
+        """
+
+        :param board: current board state
+        :param alpha: value for agent
+        :param beta: value for opponent
+        :param depthLeft: depth left to explore in the tree
+        :return: returns the best score
+        """
+        key = chess.polyglot.zobrist_hash(board)  # Get the hash of the board (current position)
+        if key in self.transpositionTable:
+            moveScore, _ = self.transpositionTable[key]
+            return moveScore
+        bestScore = -999999999999  # We need this to make sure alpha en beta
+        bestMove: chess.Move = chess.Move.null()
+
+        if depthLeft == 0 or time.time() - self.time_start > self.time_limit_move:
+            return self.quiescence(board, alpha, beta)
+
+        for move in board.legal_moves:
+            board.push(move)
+            boardValue = self.alphaBetaMax(board=board, alpha=-beta, beta=-alpha, depthLeft=depthLeft-1)
+            board.pop()
+
+            if boardValue >= beta:
+                return boardValue
+            if boardValue > bestScore:
+                bestScore = boardValue
+                bestMove = move
+                if bestScore > alpha:
+                    alpha = boardValue
+
+        self.transpositionTable[key] = (bestScore, bestMove)
+        return bestScore
+
+    def quiescence(self, board: chess.Board, alpha: float, beta: float) -> float:
+        # Combat the horizon effect, and look deeper at capture moves
+        boardScore = self.utility.calculate_heuristic(board)
+        if boardScore >= beta:
+            return boardScore
+        if alpha < boardScore:
+            alpha = boardScore
+
         for move in board.legal_moves:
             if time.time() - self.time_start > self.time_limit_move:
                 break
-            board.push(move)
-
-            score = -self.negamax_heuristic_alpha_beta_prune(beta=-beta, alpha=-alpha, depthleft=depthleft - 1,
-                                                             board=board)
-            board.pop()
-            if score >= beta:
-                return score
-            if score > best_score:
-                best_score = score
-            if score > alpha:
-                alpha = score
-        return best_score
-
-    def quiescence(self, alpha, beta, board: chess.Board) -> float:
-        """
-        Quiescence uses a non-Linear Heuristic to approximate board value
-
-        :param alpha:
-        :param beta:
-        :param board:
-        :return:
-        """
-        #print("quiescene")
-        # First, check if we have already computed this state's score
-
-        # If the score has not been computed, store it in the table
-        score = self.utility.board_heuristic(board)
-
-        # If the score is not optimal, return beta
-        if score >= beta:
-            return score
-        if score > alpha:
-            alpha = score
-
-        # If we can explore more fully, open the moves
-        for move in board.legal_moves:
-            if time.time() - self.time_start > self.time_limit_move:
-                break
-            board.push(move)
-            currentBoardScore = -self.quiescence(-alpha, -beta, board)
-            board.pop()
-
-            if currentBoardScore >= beta:
-                return beta
-            if currentBoardScore > alpha:
-                alpha = currentBoardScore
-
-        # Store the max calculated score to avoid extra computation
+            if board.is_capture(move) or board.gives_check(move):
+                board.push(move)
+                boardScore = -self.quiescence(board, -beta, -alpha)
+                board.pop()
+                if boardScore >= beta:
+                    return beta
+                if boardScore > alpha:
+                    alpha = boardScore
         return alpha
+

@@ -12,12 +12,12 @@ pawn_table = [
     0, 0, 0, 0, 0, 0, 0, 0]
 knights_table = [
     -50, -40, -30, -30, -30, -30, -40, -50,
-    -40, -20,   0,   5,   5,   0, -20, -40,
-    -30,   5,  10,  15,  15,  10,   5, -30,
-    -30,   0,  15,  20,  20,  15,   0, -30,
-    -30,   5,  15,  20,  20,  15,   5, -30,
-    -30,   0,  10,  15,  15,  10,   0, -30,
-    -40, -20,   0,   0,   0,   0, -20, -40,
+    -40, -20, 0, 5, 5, 0, -20, -40,
+    -30, 5, 10, 15, 15, 10, 5, -30,
+    -30, 0, 15, 20, 20, 15, 0, -30,
+    -30, 5, 15, 20, 20, 15, 5, -30,
+    -30, 0, 10, 15, 15, 10, 0, -30,
+    -40, -20, 0, 0, 0, 0, -20, -40,
     -50, -40, -30, -30, -30, -30, -40, -50]
 bishops_table = [
     -20, -10, -10, -10, -10, -10, -10, -20,
@@ -72,37 +72,45 @@ queen_value = 900
 king_value = 200000
 
 
-class UtilitiesChess(Utility):
-    def __init__(self, weightVector: dict) -> None:
-        self.weightVector: dict[str, float] = weightVector
-        self.score = 0
+class ChessUtility(Utility):
+    def __init__(self, weightVector: list[float]) -> None:
+        self.weightVector: list[float] = weightVector
         self.endGame = False
 
-    def board_heuristic(self, board: chess.Board) -> float:
+    def set_end_game(self):
+        self.endGame = True
+
+    def calculate_heuristic(self, board: chess.Board, debug: bool = False) -> float:
         """
         Main function which returns the value of a board state
         :param board:
         :return:
         """
-        return self.board_value(board)
+        features = [
+            self.feature_killer_move(board),
+            self.feature_material_value(board),
+            self.feature_piecesquare_value(board),
+            self.feature_mobility_value(board)
+        ]
 
+        boardValue: float = 0.0
+        for feature, weight in zip(features, self.weightVector):
+            boardValue += feature*weight
+        return -boardValue
 
-    def board_value(self, board: chess.Board):
-        if board.is_checkmate(): #control on checkmate
+    def feature_killer_move(self, board: chess.Board):
+        if board.is_checkmate():  # control on checkmate
             if board.turn:
                 return -999999
             else:
                 return 999999
-
-        if board.is_stalemate(): #there is no legal moves  -> it's a draw
-            return -9999 # we can make it negative or positive if its good to use it
+        if board.is_stalemate():  # there is no legal moves  -> it's a draw
+            return -9999  # we can make it negative or positive if its good to use it
         if board.is_insufficient_material():  # only 2 kings are active
             return 0
-        if sum(board.piece_map()) <= 8:
-            self.endGame = True
-        return self.material_value(board) * 1 + self.piecesquare_value(board) * 1 + self.mobility_value(board) * 1  # 1 = weights
+        return 0
 
-    def material_value(self, board: chess.Board):
+    def feature_material_value(self, board: chess.Board):
         material_value = 0
         material_value += len(board.pieces(chess.PAWN, board.turn)) * pawn_value
         material_value += len(board.pieces(chess.BISHOP, board.turn)) * bishop_value
@@ -120,7 +128,7 @@ class UtilitiesChess(Utility):
         material_value_enemy += len(board.pieces(chess.KING, not board.turn)) * king_value
         return material_value - material_value_enemy
 
-    def piecesquare_value(self, board: chess.Board): #gevonden online -> kunnen het nog verbeteren
+    def feature_piecesquare_value(self, board: chess.Board):  # gevonden online -> kunnen het nog verbeteren
         if self.endGame:
             kings_table = kings_table_endgame
         else:
@@ -139,8 +147,7 @@ class UtilitiesChess(Utility):
         kingsq += sum([-kings_table[chess.square_mirror(i)] for i in board.pieces(chess.KING, not board.turn)])
         return pawnsq + knightsq + bishopsq + rooksq + queensq + kingsq
 
-
-    def mobility_value(self, board: chess.Board):
+    def feature_mobility_value(self, board: chess.Board):
         mobility = 0
         for move in board.legal_moves:
             if board.piece_at(move.from_square).color == board.turn:
