@@ -9,7 +9,7 @@ class BookManager:
     def __init__(self):
         self.startWhite = os.path.join(os.path.dirname(__file__), '../books/baron30.bin')
         self.endGameBook = os.path.join(os.path.dirname(__file__), '../books/syzygy')
-        self.tartBlack = os.path.join(os.path.dirname(__file__), '../books/Human.bin')
+        self.startBlack = os.path.join(os.path.dirname(__file__), '../books/Human.bin')
 
     def openingSequence(self, board: chess.Board, isWhite: bool) -> list[chess.Move]:
         moves = []
