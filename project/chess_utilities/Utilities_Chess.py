@@ -80,7 +80,7 @@ class ChessUtility(Utility):
     def set_end_game(self):
         self.endGame = True
 
-    def calculate_heuristic(self, board: chess.Board, debug: bool = False) -> float:
+    def calculate_heuristic(self, board: chess.Board) -> float:
         """
         Main function which returns the value of a board state
         :param board:
@@ -92,22 +92,16 @@ class ChessUtility(Utility):
             self.feature_piecesquare_value(board),
             self.feature_mobility_value(board)
         ]
-
         boardValue: float = 0.0
         for feature, weight in zip(features, self.weightVector):
-            boardValue += feature*weight
-        return -boardValue
+            boardValue += feature * weight
+        return boardValue
 
     def feature_killer_move(self, board: chess.Board):
-        if board.is_checkmate():  # control on checkmate
+        if board.is_checkmate():
             if board.turn:
-                return -999999
-            else:
-                return 999999
-        if board.is_stalemate():  # there is no legal moves  -> it's a draw
-            return -9999  # we can make it negative or positive if its good to use it
-        if board.is_insufficient_material():  # only 2 kings are active
-            return 0
+                return -9999
+            return 9999
         return 0
 
     def feature_material_value(self, board: chess.Board):

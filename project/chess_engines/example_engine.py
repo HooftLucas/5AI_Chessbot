@@ -10,7 +10,7 @@ from project.chess_utilities.example_utility import ExampleUtility
 
 if __name__ == "__main__":
     # Create your utility
-    utility = ChessUtility([1, 3, 2, 0.8])
+    utility = ChessUtility([1, 1, 1, 1])
     # Create your agent
     agent = ChessAgent(utility, 15.0)
     # Create the engine

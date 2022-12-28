@@ -8,27 +8,20 @@ class ChessAgent(Agent):
     # We initialize the agent
     def __init__(self, utility: Utility, time_limit_move: float) -> None:
         super().__init__(utility, time_limit_move)
-        self.name = "Intelligent chess agent"
-        self.author = "Authors"
+        self.name = "Big brain chess agent"
+        self.author = "Lukas, Robbe en Warre"
 
-        # Books
         self.bookManager = BookManager()
-
-        # Movement Queue
         self.moveQueue: list = []
 
         # States
         self.gameOpened: bool = True
-
-        # Time related
-        self.timeStart = 0
-        self.maxTimePerMove = 15.0
+        self.time_start = 0
 
         # Search Parameters
-        self.iterative_deepening_depth: int = 3
+        self.iterative_deepening_depth: int = 6
 
-        # Transposition table
-        self.transpositionTable: dict[int, tuple[float, chess.Move]] = {}
+        self.transpositionTable = {}
 
     def calculate_move(self, board: chess.Board):
         self.time_start = time.time()
@@ -55,47 +48,44 @@ class ChessAgent(Agent):
             board.push(self.moveQueue[0])
             return self.moveQueue.pop()
 
+        move = self.iterative_deepening(board)
 
-        sortedMoves = self.iterative_deepening(board)
-
-        # We now set up our starting values for the end result
-        bestMove: chess.Move = sortedMoves[0]
-        board.push(move=sortedMoves[0])
-        alpha: float = self.utility.calculate_heuristic(board)
-        beta = -alpha
-        board.pop()
-        """Once we have sorted our possible moves with iterative search, we explore further with alpha beta pruning"""
-        for move in sortedMoves[1:]:
-            board.push(move)
-            boardScore = self.alphaBetaMax(board, alpha, beta, 50)
-            board.pop()
-
-            if boardScore > alpha:
-                alpha = boardScore
-                bestMove = move
-
-        if board.is_irreversible(bestMove):  # If the move is reversible, we clear out the transposition table because earlier entries are not valid anymore
+        if board.is_irreversible(move):
             self.transpositionTable.clear()
-        return bestMove
+        return move
 
-    def iterative_deepening(self, board: chess.Board) -> list[chess.Move]:
-        legalMoves: list[chess.Move] = list(board.legal_moves)
-        moveScores: list[float] = [-100000] * len(legalMoves)
+    def iterative_deepening(self, board: chess.Board) -> chess.Move:
+        bestScore = -99999
+        alpha = -100000
+        beta = 100000
+        bestMove = chess.Move.null()
 
+        key = chess.polyglot.zobrist_hash(board)
+        if key in self.transpositionTable:
+            _, move = self.transpositionTable[key]
+            return move
+
+        stop = False
         for depth in range(self.iterative_deepening_depth):
-            if depth == self.iterative_deepening_depth or time.time() - self.time_start > self.time_limit_move/5:
-                break
-            for moveIndex, move in enumerate(legalMoves):
-                alpha = -100000
-                beta = 100000
+            if stop: break
+            for move in board.legal_moves:
+                if time.time() - self.time_start > self.time_limit_move: # / 5:
+                    stop = True
+                    break
                 board.push(move)
-                moveScore = self.alphaBetaMax(board, alpha, beta, depth)
+                moveScore = -self.alphaBetaMax(board, -beta, -alpha, depth)
                 board.pop()
-                if moveScore > moveScores[moveIndex]:
-                    moveScores[moveIndex] = moveScore
+                if moveScore > bestScore:
+                    bestScore = moveScore
+                    bestMove  = move
+                if moveScore > alpha:
+                    alpha = moveScore
 
-        sortedMoves = [move for _, move in sorted(zip(moveScores, legalMoves), key=lambda pair: pair[0])]
-        return sortedMoves
+        if bestMove == chess.Move.null():
+            return list(board.legal_moves)[0]
+
+        self.transpositionTable[key] = (bestScore, bestMove)
+        return bestMove
 
     def alphaBetaMax(self, board: chess.Board, alpha: float, beta: float, depthLeft: int) -> float:
         """
@@ -110,26 +100,28 @@ class ChessAgent(Agent):
         if key in self.transpositionTable:
             moveScore, _ = self.transpositionTable[key]
             return moveScore
-        bestScore = -999999999999  # We need this to make sure alpha en beta
+        bestScore = -99999
         bestMove: chess.Move = chess.Move.null()
 
-        if depthLeft == 0 or time.time() - self.time_start > self.time_limit_move:
+        if depthLeft == 0:
             return self.quiescence(board, alpha, beta)
 
         for move in board.legal_moves:
+            if time.time() - self.time_start > self.time_limit_move:
+                break
             board.push(move)
-            boardValue = self.alphaBetaMax(board=board, alpha=-beta, beta=-alpha, depthLeft=depthLeft-1)
+            score = -self.alphaBetaMax(board, -beta, -alpha, depthLeft - 1)
             board.pop()
-
-            if boardValue >= beta:
-                return boardValue
-            if boardValue > bestScore:
-                bestScore = boardValue
+            if score >= beta:
+                return score
+            if score > bestScore:
+                bestScore = score
                 bestMove = move
-                if bestScore > alpha:
-                    alpha = boardValue
+            if score > alpha:
+                alpha = score
 
-        self.transpositionTable[key] = (bestScore, bestMove)
+        if bestMove != chess.Move.null():
+            self.transpositionTable[key] = (bestScore, bestMove)
         return bestScore
 
     def quiescence(self, board: chess.Board, alpha: float, beta: float) -> float:
@@ -145,11 +137,10 @@ class ChessAgent(Agent):
                 break
             if board.is_capture(move) or board.gives_check(move):
                 board.push(move)
-                boardScore = -self.quiescence(board, -beta, -alpha)
+                score = -self.quiescence(board, -beta, -alpha)
                 board.pop()
-                if boardScore >= beta:
+                if score >= beta:
                     return beta
-                if boardScore > alpha:
-                    alpha = boardScore
+                if score > alpha:
+                    alpha = score
         return alpha
-
